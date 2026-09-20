@@ -13,7 +13,7 @@ uniform mat4 projection ;
 
 void main()
 {
-    gl_Position =  projection * view * model * vec4(0.4 * pos.x, 0.4 * pos.y, pos.z, 1.0);
+    gl_Position = projection * view * model * vec4(0.4 * pos.x, 0.4 * pos.y, pos.z, 1.0);
     vCol = vec4(clamp(pos, 0.0f, 1.0f), 1.0f);
-    TextCooord = aTextCooord; 
+    TextCoord = aTexCoord;
 }
