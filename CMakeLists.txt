@@ -98,7 +98,6 @@ target_include_directories(OpenGLStarter PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/src/Libs
   ${CMAKE_CURRENT_BINARY_DIR}/generated
-  ${Stb_INCLUDE_DIR}
 )
 
 target_link_libraries(OpenGLStarter PRIVATE

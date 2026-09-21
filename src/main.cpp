@@ -34,20 +34,11 @@ GLuint LoadTexture(const std::filesystem::path& texturePath){
     int height =0;
     int channels =0;
 
-    unsigned char* data = stbi_load(texturePath.u8string().c_str(), &width, &height, &channels, 0);
-    const bool loadedFromFile = data != nullptr;
-    unsigned char fallbackPixel[] = {255, 255, 255, 255};
-
-    if (!loadedFromFile)
-    {
-        std::cerr << "Failed to load texture " << texturePath << ": "
-                  << stbi_failure_reason() << ". Using a white fallback texture.\n";
-        data = fallbackPixel;
-        width = 1;
-        height = 1;
-        channels = 4;
+    unsigned char * data = stbi_load(texturePath.u8string().c_str(), &width, &height, &channels, 0);
+    if(data == nullptr){
+        std::cerr << "Failed to load texture:"<<stbi_failure_reason() << "\n";
+        return 0;
     }
-
     GLenum format = GL_RGB;
     switch(channels){
         case 4:
@@ -64,8 +55,7 @@ GLuint LoadTexture(const std::filesystem::path& texturePath){
             break;
         default:
             std::cerr << "Unsupported texture format\n";
-            if (loadedFromFile)
-                stbi_image_free(data);
+            stbi_image_free(data);
             return 0;
     }
 
@@ -78,14 +68,11 @@ GLuint LoadTexture(const std::filesystem::path& texturePath){
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER, GL_LINEAR);
     
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glTexImage2D(GL_TEXTURE_2D,0,format,width,height,0,format,GL_UNSIGNED_BYTE,data);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
 
     glGenerateMipmap(GL_TEXTURE_2D);
 
-    if (loadedFromFile)
-        stbi_image_free(data);
+    stbi_image_free(data);
     glBindTexture(GL_TEXTURE_2D, 0);
     return  texture;
 }
@@ -184,10 +171,13 @@ int main()
     CreateShaders();
     GLuint texture_data = LoadTexture(textureDirectory / "container.jpg");
     if(texture_data == 0){
+        glDeleteTextures(1, &texture_data);
         return 1;
     }
-    GLuint uniformModel = 0, uniformView = 0, uniformProjection = 0, uniformTextureData = 0;
+    GLuint uniformModel = 0, uniformView = 0, uniformProjection = 0, uniformTexture = 0;
     glEnable(GL_DEPTH_TEST);
+
+    GLuint uniformModel = 0, uniformView = 0, uniformProjection = 0;
 
     glm::mat4 projection = glm::perspective(
         glm::radians(45.0f),
@@ -306,7 +296,7 @@ int main()
         glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
         glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(view));
         glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection));
-
+        glBindTexture(GL_TEXTURE_2D, 0);
         glm::vec3 pyramidPositions[] =
         {
             glm::vec3( 0.0f,  0.0f,  -2.5f),
@@ -328,23 +318,21 @@ int main()
             model = glm::translate(model, pyramidPositions[i]);
             model = glm::rotate(model, glm::radians(2.0f * i), glm::vec3(1.0f, 0.3f, 0.5f));
             model = glm::scale(model, glm::vec3(0.8f, 1.6f, 1.0f));
+            uniformProjection = shaderList[0]->GetUniformLocation("projection");
             uniformTextureData = shaderList[0]->GetUniformLocation("texture_data");
 
             glUniform1i(uniformTextureData, 0);
             glActiveTexture(GL_TEXTURE0);
-            glBindTexture(GL_TEXTURE_2D, texture_data);
+            // glBindTexture(GL_TEXTURE_2D, texture_data);
 
             glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
 
             meshList[i]->RenderMesh();
         }
 
-        glBindTexture(GL_TEXTURE_2D, 0);
-        glUseProgram(0);
         mainWindow.swapBuffers();
     }
 
-    glDeleteTextures(1, &texture_data);
     Cleanup();
 
     return 0;
