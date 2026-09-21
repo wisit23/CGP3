@@ -2,7 +2,6 @@
 
 out vec4 colour;
 
-in vec4 vCol ;
 in vec2 TextCoord;
 
 uniform sampler2D texture_data;
