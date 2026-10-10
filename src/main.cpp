@@ -32,6 +32,8 @@ const std::filesystem::path shaderDirectory =
     std::filesystem::u8path(OPENGL_STARTER_SHADER_DIR);
 const std::filesystem::path textureDirectory =
     std::filesystem::u8path(OPENGL_STARTER_TEXTURE_DIR);
+const std::filesystem::path modelDirectory =
+    std::filesystem::u8path(OPENGL_STARTER_MODEL_DIR);
 
 void CreateTriangle()
 {
@@ -71,6 +73,15 @@ void CreateShaders()
         shaderDirectory / "shader.frag"
     );
     shaderList.push_back(shader1);
+}
+void CreateOBJ (const std::filesystem::path& modelPath) { 
+    Mesh *obj = new Mesh();
+    bool loaded = obj->CreateMeshFromOBJ(modelPath.u8string().c_str());
+    if(!loaded) { 
+        std::cerr << "Failed to load model : " << modelPath <<std::endl;
+        return ;
+    }
+    meshList.push_back(obj);
 }
 
 GLuint LoadTexture(const std::filesystem::path& texturePath)
@@ -166,6 +177,7 @@ void Cleanup()
 
 int main()
 {
+
     Window mainWindow(WIDTH, HEIGHT, 3, 3);
     if (mainWindow.initialise() != 0)
         return 1;
@@ -185,17 +197,20 @@ int main()
         }
     }
 
-    CreateTriangle();
+    // CreateTriangle();
+    // CreateShaders();
+
+    CreateOBJ(modelDirectory / "Sting-Sword-lowpoly.obj");
     CreateShaders();
 
-    GLuint texture_cloth = LoadTexture(textureDirectory / "paper.png");
-    GLuint texture_paper = LoadTexture(textureDirectory / "paper.png");
-    if(texture_cloth == 0 || texture_paper == 0)
+    GLuint texture_cloth = LoadTexture(textureDirectory / "uvmap.png");
+    // GLuint texture_paper = LoadTexture(textureDirectory / "paper.png");
+    if(texture_cloth == 0 )
     {
         return 1;
     }
     GLuint uniformModel = 0, uniformView = 0, uniformProjection = 0;
-    GLuint uniformTexture1 = 0, uniformTexture2 = 0;
+    GLuint uniformTexture1 = 0;
     glm::mat4 projection = glm::perspective(
         glm::radians(45.0f),
         (GLfloat) mainWindow.getBufferWidth() / (GLfloat) mainWindow.getBufferHeight() ,
@@ -275,18 +290,16 @@ int main()
         uniformModel = shaderList[0]->GetUniformLocation("model");
         uniformView = shaderList[0]->GetUniformLocation("view");
         uniformProjection = shaderList[0]->GetUniformLocation("projection");
-        uniformTexture1 = shaderList[0]->GetUniformLocation("texture1");
-        uniformTexture2 = shaderList[0]->GetUniformLocation("texture2");
+        uniformTexture1 = shaderList[0]->GetUniformLocation("texture_data");
         
         glUniform1i(uniformTexture1, 0);
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, texture_cloth);
 
-        glUniform1i(uniformTexture2, 1);
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, texture_paper);
+        glm::vec3 lightColour = glm::vec3(0.0f,1.0f,1.0f) ; 
+        glUniform3fv(shaderList[0]->GetUniformLocation("lightColour"),1,(GLfloat *) &lightColour);
 
-        
+
         cameraPostMat[3][0] = -cameraPos.x;
         cameraPostMat[3][1] = -cameraPos.y;
         cameraPostMat[3][2] = -cameraPos.z;
@@ -321,7 +334,7 @@ int main()
             model = glm::rotate(model, glm::radians(2.0f * i), glm::vec3(1.0f, 0.3f, 0.5f));
             model = glm::scale(model, glm::vec3(0.8f, 0.8f, 0.8f));
             glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model));
-            meshList[i]->RenderMesh();
+            meshList[0]->RenderMesh();
         }   
 
 
