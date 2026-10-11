@@ -8,6 +8,7 @@ uniform mat4 projection;
 
 void main()
 {
+                    //clip space    //view space    //world space    //local space
     gl_Position = projection * view * model * vec4(pos, 1.0f);
     vCol = vec4(clamp(pos,0.0f,1.0f), 1.0f); //เอาจุดเเทนค่าสี
 }
