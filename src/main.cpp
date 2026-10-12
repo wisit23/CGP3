@@ -82,6 +82,13 @@ void CreateShaders()
         shaderDirectory / "shader.frag"
     );
     shaderList.push_back(shader1);
+
+        Shader* shader2 = new Shader();
+    shader2->CreateFromFiles(
+        shaderDirectory / "lightShader.vert",
+        shaderDirectory / "lightShader.frag"
+    );
+    shaderList.push_back(shader2);
 }
 
 GLuint LoadTexture(const std::filesystem::path& texturePath)
@@ -187,6 +194,8 @@ int main()
     CreateTriangle();
     CreateShaders();
 
+    CreateOBJ(modelDirectory / "cube.obj");
+
     GLuint texture_data = LoadTexture(textureDirectory / "uvmap.png");
     // GLuint texture_data_2 = LoadTexture(textureDirectory / "paper.png");
     if (texture_data == 0)
@@ -228,10 +237,14 @@ int main()
     cameraDirection.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch)); //calculate camera direction z
     
     glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f); //camera up vector
-    glm::vec3 cameraRight = glm::normalize(glm::cross(up, cameraDirection)); //camera right vector
+    glm::vec3 cameraRight = glm::normalize(glm::cross(cameraDirection,up)); //camera right vector
     glm::vec3 cameraUp = glm::normalize(glm::cross(cameraRight, cameraDirection)); //camera up vector
 
     float lastTime = static_cast<float>(glfwGetTime());
+
+    glm::vec3 lightPos = glm::vec3(5.0f, 5.0f, 0.0f);
+
+
     //paintComponent() 
     while (!mainWindow.getShouldClose())
     {
@@ -260,6 +273,15 @@ int main()
         {
             cameraPos = cameraPos + cameraRight * moveSpeed*deltaTime;
         }
+        if (glfwGetKey(mainWindow.getWindow(), GLFW_KEY_SPACE) == GLFW_PRESS)
+        {
+            yaw = -90.0f; //reset yaw
+            pitch = 0.0f; //reset pitch
+            cameraPos = glm::vec3(0.0f, 0.0f, 0.0f); //reset camera position
+        }
+
+        lightPos.x = 1.0f + sin(glfwGetTime())*2.0f;
+        lightPos.y = sin(glfwGetTime())/2.0f;
 
         // clear the screen(r g b a)
         glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -316,7 +338,7 @@ int main()
             glm::vec3(1.5f, 0.2f, -1.5f),
             glm::vec3(-1.3f, 1.0f, -1.5f)
         };
-
+        glm::vec3 lightColour = glm::vec3(1.0f, 1.0f, 1.0f); //set the light colour to white
         //draw
     for(int i = 0;i<10;i++){
         shaderList[0]->UseShader();
@@ -331,11 +353,15 @@ int main()
         glActiveTexture(GL_TEXTURE0); //set the active texture unit to 0
         glBindTexture(GL_TEXTURE_2D, texture_data); //bind the texture to the
 
-        glm::vec3 lightColour = glm::vec3(1.0f, 1.0f, 1.0f); //set the light colour to white
         glUniform3fv(shaderList[0]->GetUniformLocation("lightColour"), 
                     1, 
                     (GLfloat*)&lightColour); //set the light colour to white
-
+        glUniform3fv(shaderList[0]->GetUniformLocation("lightPos"), 
+                    1, 
+                    (GLfloat*)&lightPos); //set the light position
+        glUniform3fv(shaderList[0]->GetUniformLocation("viewPos"), 
+                    1, 
+                    (GLfloat*)&cameraPos); //set the view position
 
         // shaderList[0]->GetUniformLocation("lightColour"); //set the light colour to white
         // glActiveTexture(GL_TEXTURE1); //set the active texture unit to 1
@@ -357,6 +383,27 @@ int main()
 
         glBindTexture(GL_TEXTURE_2D, 0); //bind the texture to the
     }
+        // light
+        shaderList[1]->UseShader();
+        uniformModel = shaderList[1]->GetUniformLocation("model");
+        uniformView = shaderList[1]->GetUniformLocation("view");
+        uniformProjection = shaderList[1]->GetUniformLocation("projection");
+
+        glm::mat4 model (1.0f);
+
+        model = glm::translate(model, lightPos); //ขยับ model translate the model matrix by 0.3 in x direction
+        model = glm::scale(model, glm::vec3(0.8f, 0.8f, 1.0f)); //scale the model matrix by 0.4 in x and y direction
+        
+        // model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f)); //rotate the model matrix by 30 degrees around the z axis
+        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model)); //matrix 4x4 floating values
+        glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(view)); //matrix 4x4 floating values
+        glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection)); //matrix 4x4 floating values
+
+        glUniform3fv(shaderList[1]->GetUniformLocation("lightColour"), 
+                    1, 
+                    (GLfloat*)&lightColour); //set the light colour to white
+
+        meshList[2]->RenderMesh();
         glUseProgram(0);
 
         //double buffer
