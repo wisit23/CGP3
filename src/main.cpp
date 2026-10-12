@@ -9,11 +9,16 @@
 
 #include <filesystem>
 #include <vector>
+#include <iostream>
 
 #include "Libs/Mesh.h"
 #include "Libs/Shader.h"
 #include "Libs/Window.h"
 #include "ProjectPaths.h"
+
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_WINDOWS_UTF8
+#include <stb_image.h>
 
 const GLint WIDTH = 800;
 const GLint HEIGHT = 600;
@@ -26,16 +31,18 @@ std::vector<Shader*> shaderList;
 
 const std::filesystem::path shaderDirectory =
     std::filesystem::u8path(OPENGL_STARTER_SHADER_DIR);
+const std::filesystem::path textureDirectory =
+    std::filesystem::u8path(OPENGL_STARTER_TEXTURE_DIR);
 
 void CreateTriangle()
 {
     GLfloat vertices[] =
     {
-        //x y z
-        -1.0f, -1.0f, 0.0f, //index 0
-        0.0f, -1.0f,1.0f, //index 1
-        1.0f, -1.0f, 0.0f, //index 2
-        0.0f,  1.0f, 0.0f //index 3
+        //x y z u v 
+        -1.0f, -1.0f, 0.0f,0.0f,0.0f, //index 0
+        0.0f, -1.0f,1.0f,0.5f,0.0f, //index 1
+        1.0f, -1.0f, 0.0f,1.0f,0.0f, //index 2
+        0.0f,  1.0f, 0.0f,0.5f,1.0f  //index 3
     };
 
     unsigned int indices[] =
@@ -47,7 +54,7 @@ void CreateTriangle()
     };
 
     Mesh* obj1 = new Mesh();
-    obj1->CreateMesh(vertices, indices, 12, 12);
+    obj1->CreateMesh(vertices, indices, 20, 12);
     meshList.push_back(obj1);
 }
 
@@ -59,6 +66,64 @@ void CreateShaders()
         shaderDirectory / "shader.frag"
     );
     shaderList.push_back(shader1);
+}
+
+GLuint LoadTexture(const std::filesystem::path& texturePath)
+{
+    int width = 0;
+    int height = 0;
+    int channels = 0;
+
+    unsigned char * data = stbi_load(texturePath.u8string().c_str(), 
+                &width, &height, &channels, 0);
+
+    if (data == nullptr)
+    {
+        std::cerr << "Failed to load texture: "<<stbi_failure_reason() << "\n";
+        return 0;
+    }
+
+    GLenum format = GL_RGB; // Default format
+    switch (channels)
+    {
+        case 4:
+            format = GL_RGBA;
+            break;
+        case 3:
+            format = GL_RGB;
+            break;
+        case 2:
+            format = GL_RG;
+            break;
+        case 1:
+            format = GL_RED;
+            break;
+        default:
+            std::cerr << "Unsupported number of channels: " << channels << "\n";
+            stbi_image_free(data);
+            return 0;
+
+    }
+
+    GLuint texture = 0;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+
+    //wrap s = ในเเกน s ถ้ากระดาษหมดให้ repeat
+    //wrap t = ในเเกน t ถ้ากระดาษหมดให้ repeat
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+
+    glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, data);
+
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    stbi_image_free(data);
+    glBindTexture(GL_TEXTURE_2D, 0);
+    
+    return texture;
 }
 
 void Cleanup()
@@ -105,8 +170,20 @@ int main()
     CreateTriangle();
     CreateShaders();
 
+    GLuint texture_data = LoadTexture(textureDirectory / "cloth.jpg");
+    GLuint texture_data_2 = LoadTexture(textureDirectory / "paper.png");
+    if (texture_data == 0)
+    {
+        glDeleteTextures(1, &texture_data);
+        return 1;
+    }
+    if (texture_data_2 == 0)
+    {
+        glDeleteTextures(1, &texture_data_2);
+        return 1;
+    }
     //uint = unsigned int
-    GLuint uniformModel = 0,uniformView = 0,uniformProjection = 0;
+    GLuint uniformModel = 0,uniformView = 0,uniformProjection = 0,uniformTextureData = 0,uniformTextureData_2 = 0;
 
     //perspective projection matrix
     glm::mat4 projection =glm::perspective(
@@ -222,12 +299,23 @@ int main()
             glm::vec3(1.5f, 0.2f, -1.5f),
             glm::vec3(-1.3f, 1.0f, -1.5f)
         };
+
         //draw
     for(int i = 0;i<10;i++){
         shaderList[0]->UseShader();
         uniformModel = shaderList[0]->GetUniformLocation("model");
         uniformView = shaderList[0]->GetUniformLocation("view");
         uniformProjection = shaderList[0]->GetUniformLocation("projection");
+        uniformTextureData = shaderList[0]->GetUniformLocation("texture_data");
+        uniformTextureData_2 = shaderList[0]->GetUniformLocation("texture_data_2");
+        glUniform1i(uniformTextureData, 0); //set the texture unit to 0
+        glUniform1i(uniformTextureData_2, 1); //set the texture unit to 1
+
+        glActiveTexture(GL_TEXTURE0); //set the active texture unit to 0
+        glBindTexture(GL_TEXTURE_2D, texture_data); //bind the texture to the
+
+        glActiveTexture(GL_TEXTURE1); //set the active texture unit to 1
+        glBindTexture(GL_TEXTURE_2D, texture_data_2); //bind the texture to the
 
         glm::mat4 model (1.0f); //identity matrix
         // glm::mat4 view (1.0f); //identity matrix
@@ -242,6 +330,8 @@ int main()
         glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection)); //matrix 4x4 floating values
 
         meshList[0]->RenderMesh();
+
+        glBindTexture(GL_TEXTURE_2D, 0); //bind the texture to the
     }
         glUseProgram(0);
 

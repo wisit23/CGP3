@@ -76,6 +76,7 @@ find_package(OpenGL REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glew CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
+find_package(Stb REQUIRED)
 
 # Generate an absolute shader directory for this clone. The program can then
 # find shaders regardless of the working directory chosen by VS Code/VS/CMake.
