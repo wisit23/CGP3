@@ -33,6 +33,8 @@ const std::filesystem::path shaderDirectory =
     std::filesystem::u8path(OPENGL_STARTER_SHADER_DIR);
 const std::filesystem::path textureDirectory =
     std::filesystem::u8path(OPENGL_STARTER_TEXTURE_DIR);
+const std::filesystem::path modelDirectory =
+    std::filesystem::u8path(OPENGL_STARTER_MODEL_DIR);
 
 void CreateTriangle()
 {
@@ -56,6 +58,20 @@ void CreateTriangle()
     Mesh* obj1 = new Mesh();
     obj1->CreateMesh(vertices, indices, 20, 12);
     meshList.push_back(obj1);
+}
+
+void CreateOBJ(const std::filesystem::path& modelPath)
+{
+    Mesh* obj = new Mesh();
+    bool loaded = obj->CreateMeshFromOBJ(modelPath.u8string().c_str());
+
+    if (!loaded)
+    {
+        std::cerr << "Failed to load model: " << modelPath << std::endl;
+        return;
+    }
+
+    meshList.push_back(obj);
 }
 
 void CreateShaders()
@@ -167,21 +183,22 @@ int main()
     if (mainWindow.initialise() != 0)
         return 1;
 
+    CreateOBJ(modelDirectory / "suzanne.obj");
     CreateTriangle();
     CreateShaders();
 
-    GLuint texture_data = LoadTexture(textureDirectory / "cloth.jpg");
-    GLuint texture_data_2 = LoadTexture(textureDirectory / "paper.png");
+    GLuint texture_data = LoadTexture(textureDirectory / "uvmap.png");
+    // GLuint texture_data_2 = LoadTexture(textureDirectory / "paper.png");
     if (texture_data == 0)
     {
         glDeleteTextures(1, &texture_data);
         return 1;
     }
-    if (texture_data_2 == 0)
-    {
-        glDeleteTextures(1, &texture_data_2);
-        return 1;
-    }
+    // if (texture_data_2 == 0)
+    // {
+    //     glDeleteTextures(1, &texture_data_2);
+    //     return 1;
+    // }
     //uint = unsigned int
     GLuint uniformModel = 0,uniformView = 0,uniformProjection = 0,uniformTextureData = 0,uniformTextureData_2 = 0;
 
@@ -307,15 +324,22 @@ int main()
         uniformView = shaderList[0]->GetUniformLocation("view");
         uniformProjection = shaderList[0]->GetUniformLocation("projection");
         uniformTextureData = shaderList[0]->GetUniformLocation("texture_data");
-        uniformTextureData_2 = shaderList[0]->GetUniformLocation("texture_data_2");
+        // uniformTextureData_2 = shaderList[0]->GetUniformLocation("texture_data_2");
         glUniform1i(uniformTextureData, 0); //set the texture unit to 0
-        glUniform1i(uniformTextureData_2, 1); //set the texture unit to 1
+        // glUniform1i(uniformTextureData_2, 1); //set the texture unit to 1
 
         glActiveTexture(GL_TEXTURE0); //set the active texture unit to 0
         glBindTexture(GL_TEXTURE_2D, texture_data); //bind the texture to the
 
-        glActiveTexture(GL_TEXTURE1); //set the active texture unit to 1
-        glBindTexture(GL_TEXTURE_2D, texture_data_2); //bind the texture to the
+        glm::vec3 lightColour = glm::vec3(1.0f, 1.0f, 1.0f); //set the light colour to white
+        glUniform3fv(shaderList[0]->GetUniformLocation("lightColour"), 
+                    1, 
+                    (GLfloat*)&lightColour); //set the light colour to white
+
+
+        // shaderList[0]->GetUniformLocation("lightColour"); //set the light colour to white
+        // glActiveTexture(GL_TEXTURE1); //set the active texture unit to 1
+        // glBindTexture(GL_TEXTURE_2D, texture_data_2); //bind the texture to the
 
         glm::mat4 model (1.0f); //identity matrix
         // glm::mat4 view (1.0f); //identity matrix

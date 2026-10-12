@@ -5,10 +5,15 @@ in vec4 vCol;
 in vec2 TexCoord;
 uniform sampler2D texture_data;
 uniform sampler2D texture_data_2;
+
+uniform vec3 lightColour;
+
+
 void main()
 {
-    vec4 tex = texture(texture_data, TexCoord);
-    vec4 tex2 = texture(texture_data_2, TexCoord);
+    // vec4 tex = texture(texture_data, TexCoord);
+    // vec4 tex2 = texture(texture_data_2, TexCoord);
     // colour = mix(vCol, tex, tex.a);
-    colour = mix(tex, tex2, tex2.a);
+    // colour = mix(tex, tex2, tex2.a);
+    colour = texture(texture_data, TexCoord)*vec4(lightColour, 1.0f);
 }
