@@ -23,11 +23,19 @@
 const GLint WIDTH = 800;
 const GLint HEIGHT = 600;
 
+//Global Var
+GLuint uniformModel = 0,uniformView = 0,uniformProjection = 0,uniformTextureData = 0,uniformTextureData_2 = 0;
+GLuint texture_data ;
+glm::vec3 lightColour = glm::vec3(1.0f, 1.0f, 1.0f); //set the light colour to white
+glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 0.0f); //camera position
+glm::vec3 lightPos = glm::vec3(5.0f, 5.0f, 0.0f);
+
 float yaw = -90.0f; //camera yaw
 float pitch = 0.0f; //camera pitch
 
 std::vector<Mesh*> meshList;
 std::vector<Shader*> shaderList;
+Shader* depthShader;
 
 const std::filesystem::path shaderDirectory =
     std::filesystem::u8path(OPENGL_STARTER_SHADER_DIR);
@@ -89,6 +97,19 @@ void CreateShaders()
         shaderDirectory / "lightShader.frag"
     );
     shaderList.push_back(shader2);
+
+    Shader* shader3 = new Shader();
+    shader3->CreateFromFiles(
+        shaderDirectory / "bgShader.vert",
+        shaderDirectory / "bgShader.frag"
+    );
+    shaderList.push_back(shader3);
+
+    depthShader = new Shader();
+    depthShader->CreateFromFiles(
+        shaderDirectory / "depthShader.vert",
+        shaderDirectory / "depthShader.frag"
+    );
 }
 
 GLuint LoadTexture(const std::filesystem::path& texturePath)
@@ -183,6 +204,67 @@ void UpdateMouseLook(Window &window){
         pitch = -89.0f;
 }
 
+void RenderScene(glm::mat4 view, glm::mat4 projection)
+{
+    //render obj
+    glm::vec3 pryamidPosition[]={
+        glm::vec3(0.0f, 0.0f, -2.5f),
+        glm::vec3(2.0f, 5.0f, -15.0f),
+        glm::vec3(-1.5f, -2.2f, -2.5f),
+        glm::vec3(-3.8f, -2.0f, -12.3f),
+        glm::vec3(2.4f, -0.4f, -3.5f),
+        glm::vec3(-1.7f, 3.0f, -7.5f),
+        glm::vec3(1.3f, -2.0f, -2.5f),
+        glm::vec3(1.5f, 2.0f, -2.5f),
+        glm::vec3(1.5f, 0.2f, -1.5f),
+        glm::vec3(-1.3f, 1.0f, -1.5f)
+    };
+    //draw
+    for(int i = 0;i<10;i++){
+        // shaderList[0]->UseShader();
+        // uniformModel = shaderList[0]->GetUniformLocation("model");
+        // uniformView = shaderList[0]->GetUniformLocation("view");
+        // uniformProjection = shaderList[0]->GetUniformLocation("projection");
+        // uniformTextureData = shaderList[0]->GetUniformLocation("texture_data");
+        // uniformTextureData_2 = shaderList[0]->GetUniformLocation("texture_data_2");
+        glUniform1i(uniformTextureData, 0); //set the texture unit to 0
+        // glUniform1i(uniformTextureData_2, 1); //set the texture unit to 1
+
+        glActiveTexture(GL_TEXTURE0); //set the active texture unit to 0
+        glBindTexture(GL_TEXTURE_2D, texture_data); //bind the texture to the
+
+        // glUniform3fv(shaderList[0]->GetUniformLocation("lightColour"), 
+        //             1, 
+        //             (GLfloat*)&lightColour); //set the light colour to white
+        // glUniform3fv(shaderList[0]->GetUniformLocation("lightPos"), 
+        //             1, 
+        //             (GLfloat*)&lightPos); //set the light position
+        // glUniform3fv(shaderList[0]->GetUniformLocation("viewPos"), 
+        //             1, 
+        //             (GLfloat*)&cameraPos); //set the view position
+
+        // shaderList[0]->GetUniformLocation("lightColour"); //set the light colour to white
+        // glActiveTexture(GL_TEXTURE1); //set the active texture unit to 1
+        // glBindTexture(GL_TEXTURE_2D, texture_data_2); //bind the texture to the
+
+        glm::mat4 model (1.0f); //identity matrix
+        // glm::mat4 view (1.0f); //identity matrix
+        // glm::mat4 projection (1.0f); //identity matrix
+
+        model = glm::translate(model, pryamidPosition[i]); //ขยับ model translate the model matrix by 0.3 in x direction
+        model = glm::scale(model, glm::vec3(0.8f, 0.8f, 1.0f)); //scale the model matrix by 0.4 in x and y direction
+        
+        // model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f)); //rotate the model matrix by 30 degrees around the z axis
+        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model)); //matrix 4x4 floating values
+        glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(view)); //matrix 4x4 floating values
+        glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection)); //matrix 4x4 floating values
+
+        meshList[0]->RenderMesh();
+
+        glBindTexture(GL_TEXTURE_2D, 0); //bind the texture to the
+    }
+}
+
 int main()
 {
     // OpenGL3.3 
@@ -190,13 +272,18 @@ int main()
     if (mainWindow.initialise() != 0)
         return 1;
 
+    //Load obj
     CreateOBJ(modelDirectory / "suzanne.obj");
     CreateTriangle();
     CreateShaders();
 
+    //load light
     CreateOBJ(modelDirectory / "cube.obj");
 
-    GLuint texture_data = LoadTexture(textureDirectory / "uvmap.png");
+    //load bg
+    CreateOBJ(modelDirectory / "cube.obj");
+
+    texture_data = LoadTexture(textureDirectory / "uvmap.png");
     // GLuint texture_data_2 = LoadTexture(textureDirectory / "paper.png");
     if (texture_data == 0)
     {
@@ -209,7 +296,7 @@ int main()
     //     return 1;
     // }
     //uint = unsigned int
-    GLuint uniformModel = 0,uniformView = 0,uniformProjection = 0,uniformTextureData = 0,uniformTextureData_2 = 0;
+    // GLuint uniformModel = 0,uniformView = 0,uniformProjection = 0,uniformTextureData = 0,uniformTextureData_2 = 0;
 
     //perspective projection matrix
     glm::mat4 projection =glm::perspective(
@@ -225,8 +312,9 @@ int main()
     //     -3.0f, 3.0f,
     //     0.1f, 100.0f
     // );
+    
+    // glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 0.1f, 20.0f);
 
-    glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 0.0f); //camera position
     glm::vec3 cameraTarget = glm::vec3(0.0f, 0.0f, -1.0f); //camera target
     glm::vec3 cameraDirection = glm::normalize(cameraTarget - cameraPos); //camera direction
     
@@ -242,8 +330,30 @@ int main()
 
     float lastTime = static_cast<float>(glfwGetTime());
 
-    glm::vec3 lightPos = glm::vec3(5.0f, 5.0f, 0.0f);
+    //setup shadow depth map
+    //Declare FrameBuffer 
+    GLuint depthMapFBO; //FBO = Frame Buffer Object
+    glGenFramebuffers(1, &depthMapFBO);
+    const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 
+    //Declare Depth Map Texture
+    GLuint depthMap;
+    glGenTextures(1, &depthMap);
+    glBindTexture(GL_TEXTURE_2D, depthMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0,
+    GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    
+
+    //Blind FBO and Texture
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     //paintComponent() 
     while (!mainWindow.getShouldClose())
@@ -324,34 +434,42 @@ int main()
         // view = cameraRotateMat * cameraPosMat;
 
 
+        
+        
         view = glm::lookAt(cameraPos, cameraPos + cameraDirection, cameraUp); //view matrix
+        
+        //First render to depth map
+        glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+        glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+        glClear(GL_DEPTH_BUFFER_BIT); //ใช้เก็บข้อมูลความลึกของ pixel แต่ละ pixel framebuffer ทำได้
 
-        glm::vec3 pryamidPosition[]={
-            glm::vec3(0.0f, 0.0f, -2.5f),
-            glm::vec3(2.0f, 5.0f, -15.0f),
-            glm::vec3(-1.5f, -2.2f, -2.5f),
-            glm::vec3(-3.8f, -2.0f, -12.3f),
-            glm::vec3(2.4f, -0.4f, -3.5f),
-            glm::vec3(-1.7f, 3.0f, -7.5f),
-            glm::vec3(1.3f, -2.0f, -2.5f),
-            glm::vec3(1.5f, 2.0f, -2.5f),
-            glm::vec3(1.5f, 0.2f, -1.5f),
-            glm::vec3(-1.3f, 1.0f, -1.5f)
-        };
-        glm::vec3 lightColour = glm::vec3(1.0f, 1.0f, 1.0f); //set the light colour to white
-        //draw
-    for(int i = 0;i<10;i++){
+        glm::mat4 lightView = glm::lookAt(lightPos, glm::vec3(0.0f, 0.0f, -10.0f), up); //วัดจากเเหล่งกำเนิดแสงไปยังจุดศูนย์กลางของ scene เลยตั้งกล้องที่เเหล่งกำเนิดเเสง
+        glm::mat4 lightProjection = glm::ortho(-20.0f, 20.0f, -20.0f, 20.0f, 0.1f, 20.0f); //ใช้ orthographic projection เพราะเเสงเป็น parallel light
+        
+        depthShader->UseShader();
+        uniformModel = depthShader->GetUniformLocation("model");
+        uniformView = depthShader->GetUniformLocation("view");
+        uniformProjection = depthShader->GetUniformLocation("projection");
+
+        glCullFace(GL_FRONT); //cull front face to avoid peter panning
+        RenderScene(lightView, lightProjection); //render scene from light's perspective
+        glCullFace(GL_BACK); //cull back face to avoid peter panning
+
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+        //Second render to screen
+        glViewport(0, 0, mainWindow.getBufferWidth(), mainWindow.getBufferHeight());
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+
+        //RenderObj
         shaderList[0]->UseShader();
         uniformModel = shaderList[0]->GetUniformLocation("model");
         uniformView = shaderList[0]->GetUniformLocation("view");
         uniformProjection = shaderList[0]->GetUniformLocation("projection");
         uniformTextureData = shaderList[0]->GetUniformLocation("texture_data");
-        // uniformTextureData_2 = shaderList[0]->GetUniformLocation("texture_data_2");
-        glUniform1i(uniformTextureData, 0); //set the texture unit to 0
-        // glUniform1i(uniformTextureData_2, 1); //set the texture unit to 1
 
-        glActiveTexture(GL_TEXTURE0); //set the active texture unit to 0
-        glBindTexture(GL_TEXTURE_2D, texture_data); //bind the texture to the
 
         glUniform3fv(shaderList[0]->GetUniformLocation("lightColour"), 
                     1, 
@@ -363,26 +481,8 @@ int main()
                     1, 
                     (GLfloat*)&cameraPos); //set the view position
 
-        // shaderList[0]->GetUniformLocation("lightColour"); //set the light colour to white
-        // glActiveTexture(GL_TEXTURE1); //set the active texture unit to 1
-        // glBindTexture(GL_TEXTURE_2D, texture_data_2); //bind the texture to the
+        RenderScene(view, projection); 
 
-        glm::mat4 model (1.0f); //identity matrix
-        // glm::mat4 view (1.0f); //identity matrix
-        // glm::mat4 projection (1.0f); //identity matrix
-
-        model = glm::translate(model, pryamidPosition[i]); //ขยับ model translate the model matrix by 0.3 in x direction
-        model = glm::scale(model, glm::vec3(0.8f, 0.8f, 1.0f)); //scale the model matrix by 0.4 in x and y direction
-        
-        // model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f)); //rotate the model matrix by 30 degrees around the z axis
-        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model)); //matrix 4x4 floating values
-        glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(view)); //matrix 4x4 floating values
-        glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection)); //matrix 4x4 floating values
-
-        meshList[0]->RenderMesh();
-
-        glBindTexture(GL_TEXTURE_2D, 0); //bind the texture to the
-    }
         // light
         shaderList[1]->UseShader();
         uniformModel = shaderList[1]->GetUniformLocation("model");
@@ -404,6 +504,34 @@ int main()
                     (GLfloat*)&lightColour); //set the light colour to white
 
         meshList[2]->RenderMesh();
+
+        // bg
+        shaderList[2]->UseShader();
+        uniformModel = shaderList[2]->GetUniformLocation("model");
+        uniformView = shaderList[2]->GetUniformLocation("view");
+        uniformProjection = shaderList[2]->GetUniformLocation("projection");
+
+        glUniformMatrix4fv(shaderList[2]->GetUniformLocation("lightView"),1,GL_FALSE,glm::value_ptr(lightView));
+        glUniformMatrix4fv(shaderList[2]->GetUniformLocation("lightProjection"),1,GL_FALSE,glm::value_ptr(lightProjection));
+        
+        
+        
+        model = glm::mat4(1.0f);
+
+        model = glm::translate(model, glm::vec3(0.0f, 0.0f, -8.0f)); //ขยับ model translate the model matrix by 0.3 in x direction
+        model = glm::scale(model, glm::vec3(10.0f, 10.0f, 0.f)); //scale the model matrix by 0.4 in x and y direction
+        
+        // model = glm::rotate(model, glm::radians(-90.0f), glm::vec3(0.0f, 0.0f, 1.0f)); //rotate the model matrix by 30 degrees around the z axis
+        glUniformMatrix4fv(uniformModel, 1, GL_FALSE, glm::value_ptr(model)); //matrix 4x4 floating values
+        glUniformMatrix4fv(uniformView, 1, GL_FALSE, glm::value_ptr(view)); //matrix 4x4 floating values
+        glUniformMatrix4fv(uniformProjection, 1, GL_FALSE, glm::value_ptr(projection)); //matrix 4x4 floating values
+        glm::vec3 bgColour = glm::vec3(1.0f, 0.5f, 0.5f); //set the background colour to blue
+        glUniform3fv(shaderList[2]->GetUniformLocation("bgColour"), 
+                    1, 
+                    (GLfloat*)&bgColour); //set the background colour to blue
+        glBindTexture(GL_TEXTURE_2D, depthMap);
+        meshList[2]->RenderMesh();
+
         glUseProgram(0);
 
         //double buffer
